@@ -2,6 +2,56 @@
 Version="v2021-06-11"
 MYNAME=`whoami`
 SUFFIX=osconfig
+install_to_system()
+{
+    if [ "$MYNAME" = "root" ];then
+        echo "Please run as non root user"
+        exit 0
+    fi
+    
+    git_server=`git config --get remote.origin.url`
+    name=`basename $git_server`
+    #remove .git
+    name=${name%.git}
+    
+    if [ -L $0 ];then
+        scriptname=`readlink $0 | xargs basename`
+    else
+	      scriptname=`realpath $0 | xargs basename`
+    fi
+    
+    echo "This program will install to ~/.local/$name"
+    read -p "Do you wish to install this program[yes/no]?" yn
+    if [ "$yn" != "yes" ];then
+      echo "abort install"
+      exit 0
+    fi
+    
+    if [ -L ~/.local/bin/$scriptname ];then
+        echo "Error!!This program seem already install"
+        read -p "Force to install[yes/no]?" yn
+        if [ "$yn" != "yes" ];then
+          echo "abort install"
+          exit 0
+        fi
+        rm -rf ~/.local/bin/$scriptname ~/.local/$name
+    fi
+    
+    mkdir -p ~/.local/bin
+    git -C ~/.local/ clone $git_server $name
+    ln -sf ~/.local/$name/$scriptname ~/.local/bin/
+    ls ~/.local/$name/
+    if [ -f ~/.local/$name/$scriptname.bash_complete ];then
+        echo "do link"
+        sudo ln -sf ~/.local/$name/$scriptname.bash_complete /etc/bash_completion.d/$scriptname.bash_complete
+    fi
+    echo "install success!!"
+}
+
+if [ "$1" = "install" ];then
+  install_to_system
+fi
+
 get_dir()
 {
     if [ -L $0 ];then
@@ -19,6 +69,7 @@ if [ ! -f  $src_dir/scripts/cmd.head.sh ] || [ ! -f  $src_dir/scripts/cmd.tail.s
 fi
 
 . $src_dir/scripts/cmd.head.sh
+
 ##local function#####
 env_check()
 {
@@ -270,6 +321,7 @@ help_show()
     echo "  ls [ osname ] - list supported OS"
     echo "  update osname - update OS's config/image"
     echo "  login osname [ root ]  - login OS "
+    echo "  install - install to system "
 }
 cmd_help()
 {
