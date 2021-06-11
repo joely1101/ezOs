@@ -1,0 +1,4 @@
+EZBV_image=mynas24.dynu.net:5433/ezos/testu-ezbbuild-img
+EZBV_name=testu-benv
+EZBV_extra_opt=""
+EZBV_shell=
