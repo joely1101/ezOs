@@ -1,0 +1,4 @@
+OS_image="joely1101/buildroot_env"
+OS_name=buildroot-os
+OS_extra_opt=""
+#OS_shell auto if not define
