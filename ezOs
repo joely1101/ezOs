@@ -2,7 +2,7 @@
 Version="v2021-06-11"
 MYNAME=`whoami`
 SUFFIX=osconfig
-docker_registry=mynas24.dynu.net:4433/ezOs
+docker_registry=mynas24.dynu.net:5433/ezos
 
 install_to_system()
 {
@@ -376,6 +376,7 @@ cmd_dev_save()
     do_cmd "docker commit $EZBV_name $EZBV_image"
     if [ ! -z "$pushnow" ];then 
         git -C $src_dir push
+	echo "docker push $EZBV_image"
         do_cmd "docker push $EZBV_image"
     fi
 }
