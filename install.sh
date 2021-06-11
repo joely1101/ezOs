@@ -1,6 +1,6 @@
 #!/bin/bash
 MYNAME=`whoami`
-git_repo=/home/jlee/git/ezOs.git/
+git_repo=https://github.com/joely1101/ezOs.git
 scriptname=ezOs
 
 install_to_system()

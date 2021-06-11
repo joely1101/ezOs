@@ -2,6 +2,8 @@
 Version="v2021-06-11"
 MYNAME=`whoami`
 SUFFIX=osconfig
+docker_registry=mynas24.dynu.net:4433/ezOs
+
 install_to_system()
 {
     if [ "$MYNAME" = "root" ];then
@@ -84,8 +86,8 @@ env_check()
  
     docker -v &>/dev/null
     if [ "$?" != "0" ];then
-        echo "docker is nit install, please install by run 'sudo InstallDocker.sh'"
-        echo "Or refrernce to https://docs.docker.com/install/linux/docker-ce/ubuntu/ to install docker"
+        echo "docker is not install"
+        echo "Refrernce to https://docs.docker.com/install/linux/docker-ce/ubuntu/ to install docker"
         exit 0
     fi
 }
@@ -124,12 +126,12 @@ load_config()
 	    error_out "config file not found"
     fi
     . $config
-    if [ -z $OS_name ];then
-      OS_name=${1}
-	    echo "Warning:OS_name not found,use file name"
+    if [ -z $EZBV_name ];then
+      EZBV_name=${1}
+	    echo "Warning:EZBV_name not found,use file name"
     fi
-    if [ -z $OS_image ];then
-      echo "Error:OS_image not found"
+    if [ -z $EZBV_image ];then
+      echo "Error:EZBV_image not found"
       lerror=1
     fi
     [ $lerror -eq 1 ] && error_out "config file parameter error"
@@ -141,17 +143,17 @@ create_docker_os()
     local pro=$1
     load_config $pro
 
-    if image_not_exist $OS_image ;then
-        docker pull $OS_image
+    if image_not_exist $EZBV_image ;then
+        docker pull $EZBV_image
     fi
-    if instance_not_exist $OS_name ;then
+    if instance_not_exist $EZBV_name ;then
         VOPTION=""
         VOPTION+=" -v /etc/passwd:/etc/passwd:ro -v /etc/shadow:/etc/shadow:ro -v /etc/group:/etc/group:ro"
         VOPTION+=" -v$HOME:$HOME"
         VOPTION+=" --restart=always"
-        VOPTION+=" $OS_extra_opt"
+        VOPTION+=" $EZBV_extra_opt"
 	#echo "docker run -idt --hostname $EZBV_name --name $EZBV_name $VOPTION $EZBV_image"
-        docker run -idt --hostname $OS_name --name $OS_name $VOPTION $OS_image
+        docker run -idt --hostname $EZBV_name --name $EZBV_name $VOPTION $EZBV_image
     else
 	    echo "$EZBV_name already exist!! Continue......"
     fi
@@ -163,7 +165,7 @@ env_check
 cmd_version()
 {
     echo "=========Last commit==============="
-    git -C "$EZBV_config_dir" log -1
+    git -C "$src_dir" log -1
     echo "=========version: $Version==============="
 }
 help_add "version" "version - show version."
@@ -176,9 +178,9 @@ cmd_update()
         exit 0
     fi
     load_config $pro
-    docker stop $OS_name &>/dev/null
-    docker rm $OS_name &>/dev/null
-    docker pull $OS_image
+    docker stop $EZBV_name &>/dev/null
+    docker rm $EZBV_name &>/dev/null
+    docker pull $EZBV_image
     echo "update $pro done.Please login $pro again to take effect!!"
 }
 help_add "update" "update osname - update OS's config/image"
@@ -213,8 +215,8 @@ cmd_del()
 {
     local pro=$1
     load_config $pro
-    docker stop $OS_name &>/dev/null
-    docker rm $OS_name &>/dev/null
+    docker stop $EZBV_name &>/dev/null
+    docker rm $EZBV_name &>/dev/null
     echo "Delete $pro finish!!"
 }
 help_add "del" "del osname - del running os."
@@ -226,18 +228,18 @@ cmd_login()
     #create os first.
     create_docker_os $pro
     
-    if [ "$OS_islinux32" != "" ];then
+    if [ "$EZBV_islinux32" != "" ];then
 	    dolinux32=linux32
     else
 	    dolinux32=
     fi
 
-    local ins_name=$OS_name
+    local ins_name=$EZBV_name
     if [ "$ins_name" = "" ];then
-        error_out "OS_NAME is empty!!"
+        error_out "EZBV_name is empty!!"
     fi
-    if [ ! -z $OS_shell ];then
-	    myshell=$OS_shell
+    if [ "$EZBV_shell" != "" ];then
+	    myshell=$EZBV_shell
     else
 	    if docker exec -it $ins_name ls /bin/bash &>/dev/null ;then
 	        myshell="/bin/bash"
@@ -275,16 +277,16 @@ cmd_save()
     local pushnow=$2
     create_docker_os $pro
 
-    if [ "$OS_image" = "" ];then
+    if [ "$EZBV_image" = "" ];then
         echo "error parameter"
         return
     fi    
     
     echo "Image save to $EZBV_image"
-    docker commit $OS_name $OS_image
+    docker commit $EZBV_name $EZBV_image
     if [ ! -z "$pushnow" ];then
-        echo "Push docker image $OS_image"
-        docker push $OS_image
+        echo "Push docker image $EZBV_image"
+        docker push $EZBV_image
     fi
 }
 help_add "save" "save osname [ pushnow ]- save os and push to docker registy"
@@ -296,7 +298,7 @@ cmd_push()
     create_docker_os $pro
 
     if [ "$2" != "" ];then
-        OS_image=$2
+        EZBV_image=$2
     fi
 
     if [ "$EZBV_name" = "" ];then
@@ -305,10 +307,10 @@ cmd_push()
     fi    
     
     echo "Image save to $EZBV_image"
-    docker commit $OS_name $OS_image
+    docker commit $EZBV_name $EZBV_image
     if [ ! -z "$pushnow" ];then
-        echo "Push docker image $OS_image"
-        docker push $OS_image
+        echo "Push docker image $EZBV_image"
+        docker push $EZBV_image
     fi
 }
 #all use simple help.
@@ -335,6 +337,68 @@ cmd_help2()
 }
 help_add "help2" "help2 - show all help"
 
+cmd_dev_newos()
+{
+    local name=$1
+    local src_docker=$2
+    local repo=$docker_registry/${name}-ezbbuild-img
+    local option="$3"
+    local myshell=$4
+    if [ -f  ${config_dir}/${name}.${SUFFIX} ];then
+        error_out "Error!! $name already exist!!"
+    fi
+    
+    if [ "$name" = "" ] || [ "$src_docker" = "" ];then
+	    error_out "Error parameter"
+    fi
+    echo "pull docker image $src_docker"
+    docker pull $src_docker || error_out "docker pull $src_docker fail"
+    docker tag $src_docker $repo || error_out "docker tag fail"
+    echo "create config file ${config_dir}/${name}.${SUFFIX}"
+    cat << EOF > ${config_dir}/${name}.${SUFFIX}
+EZBV_image=$repo
+EZBV_name=${name}-benv
+EZBV_extra_opt="$option"
+EZBV_shell=$myshell
+EOF
+}
+help_add "dev_newos" "dev newos - name src_docker docker_options [shell ] - create new OS"
+
+cmd_dev_save()
+{
+    local name=$1
+    local pushnow=$2
+
+    do_cmd "git -C $src_dir add ${config_dir}/${name}.${SUFFIX}"
+    do_cmd "git -C $src_dir commit -m \"devel_save by $MYNAME\""
+
+    load_config $name
+    do_cmd "docker commit $EZBV_name $EZBV_image"
+    if [ ! -z "$pushnow" ];then 
+        git -C $src_dir push
+        do_cmd "docker push $EZBV_image"
+    fi
+}
+help_add "dev_save" "dev save osname [ pushnow ] - save config/images and push to server!"
+cmd_dev_clean()
+{
+    local name=$1
+    if [ -z "$name" ];then
+        git -C  $src_dir reset --hard origin/master
+        rm -rf ${config_dir}/*
+        git -C  $src_dir checkout -- ${config_dir}
+        echo "Done"
+        exit 0
+    fi
+
+    load_config $name
+    docker stop $EZBV_name &>/dev/null
+    docker rm $EZBV_name &>/dev/null
+    do_cmd "rm -f ${config_dir}/${name}.${SUFFIX}"
+    echo "Delete $name Done"
+    git -C  $src_dir checkout -- .
+}
+help_add "dev_clean" "dev clean osname - delete develop os config "
 
 help_add "push" "push osname - push to docker registry"
 
