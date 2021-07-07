@@ -11,6 +11,12 @@ ln -sf ~/.local/bin/ ~/.local/ezOs/ezOs
 #note: CAN NOT USE COPY, MUST symbolic link
 sudo ln -sf ~/.local/ezOs/ezOs.bash_complete /etc/bash_completion.d/ezOs.bash_complete
 
+usage:
+#ezOs update  
+#ezOs ls
+ubuntu
+buildroot
+#ezOs login buildroot
 
 
 2.if you want docker to emulate other cpu(arm64/mips...), please enable qemu static
